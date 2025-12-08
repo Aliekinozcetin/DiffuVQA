@@ -135,14 +135,19 @@ def main():
 
     logger.log("### Creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(args=args)
-    state_dict = torch.load(args.model_path, map_location="cuda")
+    
+    # Determine device
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    logger.log(f"### Using device: {device}")
+    
+    state_dict = torch.load(args.model_path, map_location=device, weights_only=False)
     new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     model.load_state_dict(new_state_dict)
 
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     logger.log(f'### The parameter count is {pytorch_total_params}')
 
-    model.eval().requires_grad_(False).to(th.device("cuda"))
+    model.eval().requires_grad_(False).to(device)
 
     tokenizer = load_tokenizer(args)
     # Create a model embedding object for nearest-neighbor / rounding.
@@ -156,7 +161,7 @@ def main():
         # Use the model's embedding module directly to avoid mismatched shape assertions.
         model_emb = model.word_embedding.eval().requires_grad_(False)
         try:
-            model_emb.to(th.device("cuda"))
+            model_emb.to(device)
         except Exception:
             pass
 
@@ -210,14 +215,14 @@ def main():
 
     try:
         for image, cond in data_test:
-            cond['input_q_id'] = cond['input_q_id'].to(th.device("cuda"))
-            cond['input_ids'] = cond['input_ids'].to(th.device("cuda"))
+            cond['input_q_id'] = cond['input_q_id'].to(device)
+            cond['input_ids'] = cond['input_ids'].to(device)
             all_text_data.append(cond)
-            all_image_data.append(image.to(th.device("cuda")))
+            all_image_data.append(image.to(device))
     except StopIteration:
         print('### End of reading iteration...')
 
-    model_emb.to(th.device("cuda"))
+    model_emb.to(device)
 
     text_iterator = iter(all_text_data)
     image_iterator = iter(all_image_data)
@@ -227,12 +232,12 @@ def main():
         if not cond:
             continue
 
-        input_ids_x = cond.pop('input_ids').to(th.device("cuda"))
-        input_ids_a = cond.pop('input_a_id').to(th.device("cuda"))
+        input_ids_x = cond.pop('input_ids').to(device)
+        input_ids_a = cond.pop('input_a_id').to(device)
         input_emb = model.get_embeds(input_ids_a)
 
         # masks and metadata
-        input_ids_mask = cond.pop('input_mask').to(th.device("cuda"))
+        input_ids_mask = cond.pop('input_mask').to(device)
         input_ids_mask_ori = input_ids_mask.to(th.device("cpu"))
         image_name = cond.pop('image_name')
 
@@ -258,7 +263,7 @@ def main():
         elif cur_len > total_len:
             full_mask = full_mask[:, :total_len]
 
-        input_ids_mask = th.broadcast_to(full_mask.unsqueeze(dim=-1), x_start.shape).to(th.device("cuda"))
+        input_ids_mask = th.broadcast_to(full_mask.unsqueeze(dim=-1), x_start.shape).to(device)
 
         noise = th.randn_like(x_start)
         if args.use_noising_f:
