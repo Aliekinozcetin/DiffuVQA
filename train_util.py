@@ -180,8 +180,7 @@ class TrainLoop:
         
         # Create progress bar for training with improved settings
         pbar = tqdm(total=self.learning_steps, desc="Training", unit="step",
-                   dynamic_ncols=True, smoothing=0.1,
-                   bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]')
+                   dynamic_ncols=True, smoothing=0.1)
         pbar.update(self.step)  # Update to current step if resuming
         
         while (not self.learning_steps) or (self.step < self.learning_steps):
@@ -193,16 +192,22 @@ class TrainLoop:
                 image, cond = next(data_iter)
 
             self.run_step(image, cond)
+            
+            # Update progress bar with loss info
+            if hasattr(logger, 'name2val') and 'loss' in logger.name2val:
+                avg_loss = logger.name2val['loss'].mean()
+                pbar.set_postfix({'loss': f'{avg_loss:.4f}'}, refresh=False)
+            
             if self.step % self.log_interval == 0:
                 logger.dumpkvs()
             if self.eval_data is not None and self.step % self.eval_interval == 0:
                 batch_eval, cond_eval = next(self.eval_data)
                 self.forward_only(batch_eval, cond_eval)
-                pbar.write('eval on validation set')
+                pbar.write(f'📊 Step {self.step}: Eval on validation set')
                 logger.dumpkvs()
             if self.step > 0 and self.step % self.save_interval == 0:
                 self.save()
-                pbar.write(f'💾 Checkpoint saved at step {self.step}')
+                pbar.write(f'💾 Step {self.step}: Checkpoint saved')
                 # Run for a finite amount of time in integration tests.
                 if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                     pbar.close()
