@@ -227,9 +227,16 @@ def main():
     text_iterator = iter(all_text_data)
     image_iterator = iter(all_image_data)
 
+    # Add progress bar for sampling
+    from tqdm import tqdm
+    total_batches = len(all_text_data)
+    pbar = tqdm(total=total_batches, desc="Sampling", unit="batch",
+               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]')
+
     for image, cond in zip(image_iterator, text_iterator):
 
         if not cond:
+            pbar.update(1)
             continue
 
         input_ids_x = cond.pop('input_ids').to(device)
@@ -348,6 +355,9 @@ def main():
                 rationale = f"Average token prob={conf_val:.3f}, avg_nn_l2={avg_dist:.3f}" if conf_val is not None else "n/a"
                 out_obj = {"image_name": image_name_i, "question": src, "reference_answer": ref, "generate_answer": recov, "confidence": conf_val, "rationale": rationale}
                 print(json.dumps(out_obj, ensure_ascii=False), file=fout)
+        
+        # Update progress bar after each batch
+        pbar.update(1)
         # break
         #
         # for (recov, ref, src) in zip(word_lst_recover, word_lst_ref, word_lst_source):
@@ -355,6 +365,9 @@ def main():
         #         {"question": src, "reference_answer": ref, "generate_answer": recov}),
         #           file=fout)
         # fout.close()
+
+    # Close progress bar
+    pbar.close()
 
     # After sampling is completed, calculate total sample size and record parameters
 

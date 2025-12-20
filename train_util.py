@@ -177,6 +177,12 @@ class TrainLoop:
         # and stop once the requested number of steps is reached.
         data_iter = iter(self.data)
         from tqdm import tqdm
+        
+        # Create progress bar for training
+        pbar = tqdm(total=self.learning_steps, desc="Training", unit="step", 
+                   bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]')
+        pbar.update(self.step)  # Update to current step if resuming
+        
         while (not self.learning_steps) or (self.step < self.learning_steps):
             try:
                 image, cond = next(data_iter)
@@ -191,15 +197,19 @@ class TrainLoop:
             if self.eval_data is not None and self.step % self.eval_interval == 0:
                 batch_eval, cond_eval = next(self.eval_data)
                 self.forward_only(batch_eval, cond_eval)
-                print('eval on validation set')
+                pbar.write('eval on validation set')
                 logger.dumpkvs()
             if self.step > 0 and self.step % self.save_interval == 0:
                 self.save()
+                pbar.write(f'💾 Checkpoint saved at step {self.step}')
                 # Run for a finite amount of time in integration tests.
                 if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
+                    pbar.close()
                     return
             self.step += 1
-            print(f'Step: {self.step}')
+            pbar.update(1)
+        
+        pbar.close()
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
