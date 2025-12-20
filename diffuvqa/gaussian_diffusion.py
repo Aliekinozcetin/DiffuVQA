@@ -656,18 +656,19 @@ class GaussianDiffusion:
 
         cond_x_start = torch.cat([ddpm_input_pre, x_start], dim=1)
 
-        # DEBUG: print shapes to help diagnose mismatches
-        try:
-            print("DEBUG training_losses_seq2seq shapes:")
-            print(" ddpm_input_pre:", tuple(ddpm_input_pre.shape))
-            print(" x_start_mean:", tuple(x_start_mean.shape))
-            print(" x_start:", tuple(x_start.shape))
-            print(" cond_x_start:", tuple(cond_x_start.shape))
-            print(" f (will be set to cond_x_start):", tuple(cond_x_start.shape))
-            print(" mask:", None if mask is None else tuple(mask.shape))
-            print(" t:", None if t is None else tuple(t.shape))
-        except Exception:
-            pass
+        # DEBUG: print shapes to help diagnose mismatches (only if DEBUG_SHAPES env var is set)
+        if os.environ.get('DEBUG_SHAPES', '0') == '1':
+            try:
+                print("DEBUG training_losses_seq2seq shapes:")
+                print(" ddpm_input_pre:", tuple(ddpm_input_pre.shape))
+                print(" x_start_mean:", tuple(x_start_mean.shape))
+                print(" x_start:", tuple(x_start.shape))
+                print(" cond_x_start:", tuple(cond_x_start.shape))
+                print(" f (will be set to cond_x_start):", tuple(cond_x_start.shape))
+                print(" mask:", None if mask is None else tuple(mask.shape))
+                print(" t:", None if t is None else tuple(t.shape))
+            except Exception:
+                pass
 
         if noise is None:
             noise = th.randn_like(cond_x_start)

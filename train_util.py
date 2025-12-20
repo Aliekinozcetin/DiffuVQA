@@ -178,8 +178,9 @@ class TrainLoop:
         data_iter = iter(self.data)
         from tqdm import tqdm
         
-        # Create progress bar for training
-        pbar = tqdm(total=self.learning_steps, desc="Training", unit="step", 
+        # Create progress bar for training with improved settings
+        pbar = tqdm(total=self.learning_steps, desc="Training", unit="step",
+                   dynamic_ncols=True, smoothing=0.1,
                    bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]')
         pbar.update(self.step)  # Update to current step if resuming
         
@@ -262,7 +263,7 @@ class TrainLoop:
                 log_loss_dict(
                     self.diffusion, t, {f"eval_{k}": v * weights for k, v in losses.items()}
                 )
-                print("eval loss:", loss.detach())
+                # Eval loss is logged by logger.logkv_mean
 
     def forward_backward(self, image, cond):
         zero_grad(self.model_params)
@@ -296,7 +297,7 @@ class TrainLoop:
         log_loss_dict(
             self.diffusion, t, {k: v * weights for k, v in losses.items()}
         )
-        if self.use_fp16:
+        # Eval loss is logged by logger.logkv_mean
             loss_scale = 2 ** self.lg_loss_scale
             (loss * loss_scale).backward()
         else:
